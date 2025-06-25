@@ -1,6 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 const app = express();
+const crypto = require('crypto'); // Adicione no topo do arquivo
+
 
 // 1. Configuração do timezone
 process.env.TZ = 'America/Sao_Paulo';
@@ -26,41 +28,42 @@ app.use((req, res, next) => {
 // 3. Rota de health check e teste de conexão
 app.get('/', async (req, res) => {
   try {
-    const serverStatus = {
-      status: 'online',
-      port: process.env.PORT || 10000,
-      timestamp: new Date().toISOString(),
-    };
+    const timestamp = Math.floor(Date.now() / 1000); // Timestamp em SEGUNDOS
+    const signatureString = `${process.env.SHOPEE_API_ID}:${process.env.SHOPEE_API_SECRET}:${timestamp}`;
+    
+    // Gera a assinatura SHA256
+    const signature = crypto
+      .createHash('sha256')
+      .update(signatureString)
+      .digest('hex');
 
-    // Gera um timestamp VÁLIDO para a Shopee (timestamp atual em segundos)
-    const timestamp = Math.floor(Date.now() / 1000);
-
-    // Envia uma query SIMPLES (ex: listar categorias)
     const shopeeTest = await axios.post(
       'https://open-api.affiliate.shopee.com.br/graphql',
-      { query: '{ products { id } }' }, // Query de teste
+      { query: '{ categories { name } }' }, // Query de teste
       {
         headers: {
           'Content-Type': 'application/json',
           'X-APP-ID': process.env.SHOPEE_API_ID,
-          'Authorization': `SHA256 Credential=${process.env.SHOPEE_API_ID}, Timestamp=${timestamp}`,
+          'Authorization': `SHA256 Credential=${process.env.SHOPEE_API_ID}, Signature=${signature}, Timestamp=${timestamp}`,
         },
         timeout: 5000,
       }
     );
 
     res.json({
-      ...serverStatus,
+      status: 'online',
+      port: process.env.PORT || 10000,
+      timestamp: new Date().toISOString(),
       shopee_api: 'connected',
-      shopee_response: shopeeTest.data, // Mostra a resposta real
+      shopee_response: shopeeTest.data,
     });
 
   } catch (error) {
     res.json({
-      ...serverStatus,
+      status: 'online',
       shopee_api: 'error',
       error: error.message,
-      details: error.response?.data || 'Sem resposta da Shopee',
+      details: error.response?.data || 'Erro na chamada à Shopee',
     });
   }
 });
