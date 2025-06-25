@@ -38,7 +38,7 @@ app.get('/', async (req, res) => {
     // Envia uma query SIMPLES (ex: listar categorias)
     const shopeeTest = await axios.post(
       'https://open-api.affiliate.shopee.com.br/graphql',
-      { query: '{ categories { name } }' }, // Query de teste
+      { query: '{ products { id } }' }, // Query de teste
       {
         headers: {
           'Content-Type': 'application/json',
