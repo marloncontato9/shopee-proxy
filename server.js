@@ -35,7 +35,7 @@ app.get('/', async (req, res) => {
     };
 
     // Teste opcional de conexão com a API Shopee (substitua pela sua lógica)
-    const shopeeTest = await axios.get('https://open-api.affiliate.shopee.com.br/ping', {
+    const shopeeTest = await axios.get('https://open-api.affiliate.shopee.com.br', {
       headers: {
         'X-APP-ID': process.env.SHOPEE_API_ID,
       },
