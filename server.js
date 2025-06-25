@@ -29,34 +29,38 @@ app.get('/', async (req, res) => {
     const serverStatus = {
       status: 'online',
       port: process.env.PORT || 10000,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    // Teste com uma query real (ex: obter categorias)
+    // Gera um timestamp VÁLIDO para a Shopee (timestamp atual em segundos)
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // Envia uma query SIMPLES (ex: listar categorias)
     const shopeeTest = await axios.post(
       'https://open-api.affiliate.shopee.com.br/graphql',
-      { query: '{ categories { name } }' }, // Substitua por uma query válida
+      { query: '{ categories { name } }' }, // Query de teste
       {
         headers: {
           'Content-Type': 'application/json',
           'X-APP-ID': process.env.SHOPEE_API_ID,
-          'Authorization': `SHA256 Credential=${process.env.SHOPEE_API_ID}, Timestamp=${Date.now()}`
+          'Authorization': `SHA256 Credential=${process.env.SHOPEE_API_ID}, Timestamp=${timestamp}`,
         },
-        timeout: 5000
+        timeout: 5000,
       }
     );
 
     res.json({
       ...serverStatus,
       shopee_api: 'connected',
-      shopee_response: shopeeTest.data // Opcional: mostra parte da resposta
+      shopee_response: shopeeTest.data, // Mostra a resposta real
     });
 
   } catch (error) {
     res.json({
-      status: 'online',
+      ...serverStatus,
       shopee_api: 'error',
-      error: error.message // Mostra o erro específico (ex: credenciais inválidas)
+      error: error.message,
+      details: error.response?.data || 'Sem resposta da Shopee',
     });
   }
 });
