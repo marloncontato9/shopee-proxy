@@ -29,29 +29,34 @@ app.get('/', async (req, res) => {
     const serverStatus = {
       status: 'online',
       port: process.env.PORT || 10000,
-      timezone: process.env.TZ,
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      timestamp: new Date().toISOString()
     };
 
-    // Teste opcional de conexão com a API Shopee (substitua pela sua lógica)
-    const shopeeTest = await axios.get('https://open-api.affiliate.shopee.com.br', {
-      headers: {
-        'X-APP-ID': process.env.SHOPEE_API_ID,
-      },
-      timeout: 5000
-    }).catch(() => null);
+    // Teste com uma query real (ex: obter categorias)
+    const shopeeTest = await axios.post(
+      'https://open-api.affiliate.shopee.com.br/graphql',
+      { query: '{ categories { name } }' }, // Substitua por uma query válida
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-APP-ID': process.env.SHOPEE_API_ID,
+          'Authorization': `SHA256 Credential=${process.env.SHOPEE_API_ID}, Timestamp=${Date.now()}`
+        },
+        timeout: 5000
+      }
+    );
 
     res.json({
       ...serverStatus,
-      shopee_api: shopeeTest ? 'connected' : 'unreachable (check credentials)'
+      shopee_api: 'connected',
+      shopee_response: shopeeTest.data // Opcional: mostra parte da resposta
     });
 
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      error: error.message,
-      details: 'O servidor está online, mas o teste de conexão falhou'
+    res.json({
+      status: 'online',
+      shopee_api: 'error',
+      error: error.message // Mostra o erro específico (ex: credenciais inválidas)
     });
   }
 });
