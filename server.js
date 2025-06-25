@@ -1,75 +1,79 @@
-app.post('/proxy', async (req, res) => {
-  try {
-    // VERIFICAÇÃO DO TIMESTAMP
-    const authHeader = req.headers.authorization;
-    const timestamp = authHeader.match(/Timestamp=(\d+)/)[1];
-    const now = Date.now();
-    const diff = Math.abs(now - parseInt(timestamp));
-    
-    if (diff > 300000) { // 5 minutos de tolerância
-      console.warn(`AVISO: Timestamp com diferença de ${diff/1000}s`);
-    }
-    
-    
-    
-    const express = require('express');
+const express = require('express');
 const axios = require('axios');
 const app = express();
 
+// 1. Configuração do timezone
 process.env.TZ = 'America/Sao_Paulo';
 
+// 2. Middlewares
 app.use(express.json());
 
-// Middleware de log melhorado
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] Requisição de ${req.ip}`, {
+    method: req.method,
+    path: req.path,
     headers: req.headers,
     body: req.body
   });
   next();
 });
 
-// Rota principal com tratamento robusto
+// 3. Rota principal
 app.post('/proxy', async (req, res) => {
   try {
-    console.log("Enviando para Shopee:", req.body);
+    // Verificação do timestamp
+    const authHeader = req.headers.authorization || '';
+    const timestampMatch = authHeader.match(/Timestamp=(\d+)/);
     
-    const response = await axios.post('https://open-api.affiliate.shopee.com.br/graphql', req.body, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization,
-        'X-APP-ID': req.headers['x-app-id']
-      },
-      timeout: 8000
+    if (!timestampMatch) {
+      return res.status(400).json({ error: "Cabeçalho Authorization inválido" });
+    }
+
+    const timestamp = parseInt(timestampMatch[1]);
+    const now = Date.now();
+    const diff = Math.abs(now - timestamp);
+
+    // Log de verificação
+    console.log("Verificação do timestamp:", {
+      recebido: new Date(timestamp).toISOString(),
+      servidor: new Date(now).toISOString(),
+      diferença_ms: diff
     });
-    
-    console.log("Resposta da Shopee:", response.data);
-    res.json(response.data);
-    
+
+    // Requisição para a API Shopee
+    const shopeeResponse = await axios.post(
+      'https://open-api.affiliate.shopee.com.br/graphql',
+      req.body,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': req.headers.authorization,
+          'X-APP-ID': req.headers['x-app-id']
+        },
+        timeout: 8000
+      }
+    );
+
+    res.json(shopeeResponse.data);
+
   } catch (error) {
-    console.error("ERRO DETALHADO:", {
+    console.error("Erro completo:", {
       message: error.message,
-      response: error.response?.data,
-      stack: error.stack
+      stack: error.stack,
+      response: error.response?.data
     });
+    
     res.status(500).json({ 
-      error: "Erro na API Shopee",
+      error: "Erro no proxy",
       details: error.message 
     });
   }
 });
 
+// 4. Inicialização do servidor
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🟢 Proxy ativo na porta ${PORT} | ${new Date()}`));
-
-
-      // Restante do seu código...
-  } catch (error) {
-    console.error("ERRO DETALHADO:", {
-      timestampReceived: timestamp,
-      serverTime: now,
-      timeDifference: diff
-    });
-    //...
-  }
+app.listen(PORT, () => {
+  console.log(`🟢 Proxy Shopee rodando na porta ${PORT}`);
+  console.log(`🕒 Timezone: ${process.env.TZ}`);
+  console.log(`⚙️ Ambiente: ${process.env.NODE_ENV || 'development'}`);
 });
